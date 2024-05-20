@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
+var configuration = app.Configuration;
+ProductRepository.Init(configuration);
  
 
  app.MapPost("/products", (Product product) => {
@@ -14,8 +16,10 @@ var app = builder.Build();
 
 app.MapGet("products/{code}", ( [FromRoute] string code) => { 
     var product = ProductRepository.GetBy(code);
-    if(product != null)
+    if(product != null) {
+        Console.WriteLine("Product found");
         return Results.Ok(product);
+    }  
     return Results.NotFound();
 });
 
@@ -30,27 +34,32 @@ app.MapDelete("/products/{code}", ( [FromRoute] string code) => {
     ProductRepository.Remove(productSaved);
     return Results.Ok();
 });
+if(app.Environment.IsStaging())
+app.MapGet("/configuration/database", (IConfiguration configuration) => {
+    return Results.Ok($"{configuration["Database:connection"]}/{configuration["Database:port"]}");
+});
+
 
 app.Run();
 
 public static class ProductRepository {
-     public static List<Product> Products { get; set; }
+    public static List<Product> Products { get; set; } = Products = new List<Product>();
 
-     public static void Add(Product product) {
-        if(Products == null)
-            Products = new List<Product>();
-
+    public static void Init(IConfiguration configuration) {
+        var products = configuration.GetSection("Products").Get<List<Product>>();
+        Products = products;
+    }
+    public static void Add(Product product) {
         Products.Add(product);
+    }
 
-     }
-
-     public static Product GetBy(string code) {
+    public static Product GetBy(string code) {
         return Products.FirstOrDefault(p => p.Code == code);
-     }
+    }
 
-     public static void Remove(Product product) {
+    public static void Remove(Product product) {
         Products.Remove(product);
-     }
+    }
 }
 
 
